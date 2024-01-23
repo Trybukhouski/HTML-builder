@@ -15,45 +15,65 @@ class BuildPage {
     );
   }
 
-  addTemplate() {
-    let content = '';
-
-    fs.readFile(path.join(__dirname, 'template.html'), 'utf-8', (err, data) => {
-      if (err) throw err;
-      content += data;
-
-      fs.readdir(
-        path.join(__dirname, 'components'),
-        { withFileTypes: true },
-        (err, files) => {
-          if (err) throw err;
-
-          for (let file of files) {
-            fs.readFile(
-              path.join(file.path, file.name),
-              'utf-8',
-              (err, data) => {
-                if (err) throw err;
-
-                let componentName = `{{${file.name.split('.')[0]}}}`;
-                content = content.replaceAll(componentName, data);
-                fs.writeFile(
-                  path.join(__dirname, 'project-dist', 'index.html'),
-                  content,
-                  (err) => {
-                    if(err) {
-                      throw err;
-                    }
-                  },
-                );
-              },
-            );
-          }
+  async addTemplate() {
+    async function createTemplate() {
+      let template = '';
+      const result = await fsPromise.readFile(
+        path.join(__dirname, 'template.html'),
+        'utf-8',
+        (data) => {
+          template += data;
+          return template;
         },
       );
-      
-    });
-    
+
+      return result;
+    }
+
+    async function readComponents() {
+      const components = [];
+      const result = await fsPromise
+        .readdir(path.join(__dirname, 'components'), { withFileTypes: true })
+        .then((files) => {
+          for (let file of files) {
+            components.push(readFile(file));
+          }
+          return components;
+        });
+
+      return result;
+    }
+
+    async function readFile(file) {
+      const element = await fsPromise
+        .readFile(path.join(file.path, file.name), 'utf-8')
+        .then((data) => {
+          let name = `{{${file.name.split('.')[0]}}}`;
+          return [name, data];
+        });
+      return element;
+    }
+    async function updateTemplate() {
+      let template = await createTemplate();
+      const components = await readComponents();
+
+      for (let component of components) {
+        component
+          .then((data) => {
+            template = template.replaceAll(data[0], data[1]);
+            return template;
+          })
+          .then((template) => {
+            fs.writeFile(
+              path.join(__dirname, 'project-dist', 'index.html'),
+              template,
+              () => {},
+            );
+          });
+      }
+    }
+
+    await updateTemplate();
   }
 
   async mergeStyles() {
@@ -100,24 +120,22 @@ class BuildPage {
       const shortPath = pathArr.slice(rootIndex).join(path.sep);
 
       if (asset.isDirectory()) {
-        console.log(asset.path);
-        await fsPromise.mkdir(
-          path.join(__dirname, 'project-dist', shortPath, asset.name),
-          {
+        await fsPromise
+          .mkdir(path.join(__dirname, 'project-dist', shortPath, asset.name), {
             recursive: true,
-          },
-        ).then(() => {
-          this.addAssets(path.join(shortPath, asset.name))
-        })
+          })
+          .then(() => {
+            this.addAssets(path.join(shortPath, asset.name));
+          });
       } else if (asset.isFile()) {
-        console.log(path.join(__dirname, 'project-dist', shortPath, asset.name))
         fs.copyFile(
           path.join(__dirname, shortPath, asset.name),
           path.join(__dirname, 'project-dist', shortPath, asset.name),
-          (err) => {if(err) {
-            throw err;
-          }
-        }
+          (err) => {
+            if (err) {
+              throw err;
+            }
+          },
         );
       }
     }
