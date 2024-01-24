@@ -58,7 +58,7 @@ class BuildPage {
       const components = await readComponents();
 
       for (let i = 0; i < components.length; i++) {
-        components[i]
+        await components[i]
           .then((data) => {
             template = template.replaceAll(data[0], data[1]);
             return template;
