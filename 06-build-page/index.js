@@ -57,18 +57,20 @@ class BuildPage {
       let template = await createTemplate();
       const components = await readComponents();
 
-      for (let component of components) {
-        component
+      for (let i = 0; i < components.length; i++) {
+        components[i]
           .then((data) => {
             template = template.replaceAll(data[0], data[1]);
             return template;
           })
           .then((template) => {
-            fs.writeFile(
-              path.join(__dirname, 'project-dist', 'index.html'),
-              template,
-              () => {},
-            );
+            if (i === components.length - 1) {
+              fs.writeFile(
+                path.join(__dirname, 'project-dist', 'index.html'),
+                template,
+                () => {},
+              );
+            }
           });
       }
     }
@@ -141,11 +143,11 @@ class BuildPage {
     }
   }
 
-  start() {
-    this.createDistFolder();
-    this.addTemplate();
-    this.mergeStyles();
-    this.addAssets('assets');
+  async start() {
+    await this.createDistFolder();
+    await this.addTemplate();
+    await this.mergeStyles();
+    await this.addAssets('assets');
   }
 }
 
